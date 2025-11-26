@@ -2,11 +2,11 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> <title>HiNOMAD WORLD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>HiNOMAD WORLD</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEEB; touch-action: none; /* 모바일 스크롤 방지 */ }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; touch-action: none; }
         
-        /* UI: 조작 설명 */
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
             color: white; font-family: 'Inter', sans-serif; font-weight: bold; font-size: 1.2rem;
@@ -25,33 +25,30 @@
             pointer-events: none; transition: opacity 0.2s; z-index: 5;
         }
 
-        /* NPC 말풍선 */
         #npc-label {
             position: absolute;
-            background: white; color: #333; padding: 8px 16px; border-radius: 20px;
+            background: #ffcc00; /* NPC 색상에 맞춤 */
+            color: #333; padding: 8px 16px; border-radius: 20px;
             font-weight: bold; font-family: sans-serif; cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transform: translate(-50%, -100%); display: none; z-index: 20; border: 2px solid #00ffff;
+            transform: translate(-50%, -100%); display: none; z-index: 20; border: 2px solid white;
         }
 
-        /* 정보 팝업창 */
         #info-modal {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.85); color: white; padding: 30px; border-radius: 15px;
-            text-align: center; display: none; z-index: 30; border: 1px solid #00ffff;
+            text-align: center; display: none; z-index: 30; border: 1px solid #ffcc00;
             width: 80%; max-width: 400px;
         }
-        #info-modal h2 { margin-top: 0; color: #00ffff; }
+        #info-modal h2 { margin-top: 0; color: #ffcc00; }
         #close-btn {
-            margin-top: 20px; padding: 10px 20px; background: #00ffff; border: none;
-            border-radius: 5px; font-weight: bold; cursor: pointer;
+            margin-top: 20px; padding: 10px 20px; background: #ffcc00; border: none;
+            border-radius: 5px; font-weight: bold; cursor: pointer; color: black;
         }
 
-        /* ★ 모바일 컨트롤 UI ★ */
         #joystick-zone {
             position: absolute; bottom: 30px; left: 30px;
             width: 120px; height: 120px; z-index: 15;
-            /* 반투명한 원으로 영역 표시 (선택사항) */
             background: rgba(255, 255, 255, 0.1); 
             border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.3);
@@ -69,7 +66,7 @@
             user-select: none;
         }
         #jump-btn:active {
-            background: rgba(0, 255, 255, 0.5); /* 터치 시 색 변화 */
+            background: rgba(0, 255, 255, 0.5); 
         }
     </style>
     
@@ -85,15 +82,15 @@
     </script>
 </head>
 <body>
-    <div id="instructions">PC: WASD 이동 | Mobile: 터치 조이스틱</div>
-    <div id="loading">HiNOMAD WORLD (Mobile Ready)...</div>
+    <div id="instructions">PC: WASD | Mobile: Joystick | Find the Gold Robot!</div>
+    <div id="loading">HiNOMAD WORLD (Painting NPC)...</div>
     <div id="splash-screen"></div>
 
     <div id="npc-label">About HiNOMAD 💬</div>
 
     <div id="info-modal">
         <h2>HiNOMAD</h2>
-        <p>IT 브랜딩 컴퍼니<br>We create the future.</p>
+        <p>IT Consulting Group<br>We create the future.</p>
         <button id="close-btn">닫기</button>
     </div>
 
@@ -176,6 +173,7 @@
         const loader = new GLTFLoader();
         const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
+        // 4-1. 플레이어 (색상 변경 없음)
         loader.load(modelUrl, function (gltf) {
             playerModel = gltf.scene;
             playerModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
@@ -207,10 +205,30 @@
             }
         });
 
+        // 4-2. NPC (색상 변경 적용!)
         loader.load(modelUrl, function (gltf) {
             npcModel = gltf.scene;
-            npcModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
-            npcModel.scale.set(0.5, 0.5, 0.5);
+            
+            // ★ NPC 색상 변경 로직 ★
+            npcModel.traverse(o => { 
+                if(o.isMesh) {
+                    o.castShadow = true;
+                    // 기존 재질(Material)을 복사해서 나만의 것으로 만듦 (중요!)
+                    // 복사를 안 하면 플레이어 색까지 같이 바뀜
+                    o.material = o.material.clone();
+                    
+                    // 색상 변경 (여기를 원하시는 색으로 바꾸세요!)
+                    // 0xFFD700 (골드), 0xFF69B4 (핫핑크), 0x00FF00 (초록)
+                    o.material.color.set(0xFFD700); 
+                    
+                    // 금속 재질 느낌 추가
+                    o.material.metalness = 0.5;
+                    o.material.roughness = 0.3;
+                }
+            });
+
+            // 크기도 살짝 키워서 '보스' 느낌
+            npcModel.scale.set(0.6, 0.6, 0.6); 
             npcModel.position.set(10, 0, -5); 
             npcModel.rotation.y = -Math.PI / 2;
             scene.add(npcModel);
@@ -227,7 +245,7 @@
             }
         });
 
-        // --- 5. 컨트롤 (키보드 + 모바일 조이스틱) ---
+        // --- 5. 컨트롤 ---
         const keys = { w: false, a: false, s: false, d: false, space: false };
         const playerSpeed = 0.15;
         let verticalVelocity = 0;
@@ -236,7 +254,6 @@
         let isGrounded = false;
         let isDead = false;
 
-        // 5-1. 키보드 이벤트
         window.addEventListener('keydown', (e) => {
             if(isDead) return;
             if (e.code === 'KeyW') keys.w = true;
@@ -253,7 +270,6 @@
             if (e.code === 'Space') keys.space = false;
         });
 
-        // 5-2. ★ 모바일 조이스틱 설정 (Nipple.js) ★
         const joystickZone = document.getElementById('joystick-zone');
         const joystickManager = nipplejs.create({
             zone: joystickZone,
@@ -263,9 +279,7 @@
             size: 100
         });
 
-        // 조이스틱 데이터 저장 변수
         let joystickData = { x: 0, y: 0, active: false };
-
         joystickManager.on('move', (evt, data) => {
             if(data && data.vector) {
                 joystickData.active = true;
@@ -273,28 +287,16 @@
                 joystickData.y = data.vector.y;
             }
         });
-
         joystickManager.on('end', () => {
             joystickData.active = false;
-            joystickData.x = 0;
-            joystickData.y = 0;
+            joystickData.x = 0; joystickData.y = 0;
         });
 
-        // 5-3. ★ 모바일 점프 버튼 ★
         const jumpBtn = document.getElementById('jump-btn');
-        // 터치 시작 시 점프 키 누른 것으로 처리
-        jumpBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // 스크롤 방지
-            keys.space = true;
-        });
-        jumpBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            keys.space = false;
-        });
-        // 마우스 클릭도 지원 (PC 테스트용)
+        jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.space = true; });
+        jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.space = false; });
         jumpBtn.addEventListener('mousedown', () => keys.space = true);
         jumpBtn.addEventListener('mouseup', () => keys.space = false);
-
 
         function fadeToAction(name, duration) {
             if (!playerActions[name] || activeAction === playerActions[name]) return;
@@ -313,25 +315,17 @@
             fadeToAction('Idle', 0.5);
         }
 
-        // --- 6. UI 이벤트 (NPC 대화) ---
+        // --- 6. NPC 상호작용 ---
         const npcLabel = document.getElementById('npc-label');
         const infoModal = document.getElementById('info-modal');
         const closeBtn = document.getElementById('close-btn');
 
-        // 터치 및 클릭 모두 지원
         npcLabel.addEventListener('click', () => infoModal.style.display = 'block');
-        npcLabel.addEventListener('touchstart', (e) => { 
-            e.preventDefault(); // 더블탭 줌 방지
-            infoModal.style.display = 'block'; 
-        });
-
+        npcLabel.addEventListener('touchstart', (e) => { e.preventDefault(); infoModal.style.display = 'block'; });
         closeBtn.addEventListener('click', () => infoModal.style.display = 'none');
-        closeBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            infoModal.style.display = 'none';
-        });
+        closeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); infoModal.style.display = 'none'; });
 
-        // --- 7. 게임 루프 ---
+        // --- 7. 루프 ---
         const clock = new THREE.Clock();
         const cameraOffset = new THREE.Vector3(0, 10, 14);
 
@@ -344,9 +338,10 @@
 
             if (playerModel && npcModel) {
                 const dist = playerModel.position.distanceTo(npcModel.position);
-                if (dist < 5) {
+                if (dist < 6) { // 인식 거리
                     npcLabel.style.display = 'block';
-                    const npcHeadPos = npcModel.position.clone().add(new THREE.Vector3(0, 2.5, 0));
+                    // NPC가 커졌으니 머리 위치도 높임 (y+3.0)
+                    const npcHeadPos = npcModel.position.clone().add(new THREE.Vector3(0, 3.0, 0));
                     npcHeadPos.project(camera);
                     const x = (npcHeadPos.x * .5 + .5) * window.innerWidth;
                     const y = (-(npcHeadPos.y * .5) + .5) * window.innerHeight;
@@ -360,23 +355,17 @@
 
             if (playerModel) {
                 let moveX = 0, moveZ = 0, isMoving = false;
-
                 if (!isDead) {
-                    // 1. 키보드 입력 처리
                     if (keys.w) { moveZ -= playerSpeed; isMoving = true; }
                     if (keys.s) { moveZ += playerSpeed; isMoving = true; }
                     if (keys.a) { moveX -= playerSpeed; isMoving = true; }
                     if (keys.d) { moveX += playerSpeed; isMoving = true; }
-
-                    // 2. ★ 조이스틱 입력 합치기 (중요) ★
                     if (joystickData.active) {
-                        // 조이스틱 Y값이 위로 갈수록 양수이므로, 3D 좌표계(-Z가 앞)에 맞게 반전
                         moveZ -= joystickData.y * playerSpeed;
                         moveX += joystickData.x * playerSpeed;
                         isMoving = true;
                     }
                 }
-
                 playerModel.position.x += moveX;
                 playerModel.position.z += moveZ;
 
@@ -388,7 +377,6 @@
                     isGrounded = false;
                     fadeToAction('Jump', 0.1);
                 }
-
                 verticalVelocity += gravity;
                 playerModel.position.y += verticalVelocity;
 
@@ -410,7 +398,6 @@
                 }
 
                 if (isMoving && !isDead) {
-                    // 이동 각도 계산 (키보드 + 조이스틱 모두 반영)
                     const angle = Math.atan2(moveX, moveZ);
                     playerModel.rotation.y = angle;
                     if (isGrounded) fadeToAction('Walking', 0.2);
