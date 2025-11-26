@@ -7,7 +7,7 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; touch-action: none; font-family: 'Inter', sans-serif; }
         
-        /* UI: 점수판 */
+        /* 점수판 */
         #score-board {
             position: absolute; top: 20px; left: 20px;
             background: rgba(255, 255, 255, 0.9);
@@ -17,7 +17,7 @@
             z-index: 20; display: flex; align-items: center; gap: 10px;
         }
 
-        /* UI: 스타일 버튼 */
+        /* 스타일 버튼 */
         #style-btn {
             position: absolute; top: 20px; right: 20px;
             background: white; border: none;
@@ -28,7 +28,7 @@
         }
         #style-btn:active { transform: scale(0.95); }
 
-        /* UI: 공통 모달 스타일 */
+        /* 모달 공통 */
         .modal {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.9); color: white; padding: 30px; border-radius: 20px;
@@ -47,7 +47,7 @@
             position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa;
         }
 
-        /* 미션 모달 (동적 내용 변경) */
+        /* 미션 모달 */
         #mission-modal { border-color: #ff00ff; box-shadow: 0 0 30px rgba(255, 0, 255, 0.6); }
         #mission-modal h2 { color: #ff00ff; }
         #mission-modal .modal-btn { background: #ff00ff; color: white; }
@@ -59,17 +59,9 @@
             transform: translate(-50%, -100%); display: none; z-index: 20; border: 2px solid white;
         }
 
-        /* 로딩 & 스플래시 */
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black;
-            transition: opacity 0.5s; pointer-events: none;
-        }
-        #splash-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 100, 255, 0.5); opacity: 0;
-            pointer-events: none; transition: opacity 0.2s; z-index: 5;
-        }
+        /* 로딩 등 */
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black; transition: opacity 0.5s; pointer-events: none; }
+        #splash-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 100, 255, 0.5); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 5; }
         
         /* 컨트롤러 */
         #joystick-zone { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; z-index: 15; background: rgba(255, 255, 255, 0.1); border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3); }
@@ -88,11 +80,11 @@
     </script>
 </head>
 <body>
-    <div id="loading">HiNOMAD WORLD (Loading Resources)...</div>
+    <div id="loading">HiNOMAD WORLD (Fixing Logic)...</div>
     <div id="splash-screen"></div>
 
     <div id="score-board">🍎 0</div>
-    <button id="style-btn">🎨 Mix Color</button>
+    <button id="style-btn">🎨 3-Color Mix</button>
 
     <div id="npc-label">About HiNOMAD 💬</div>
     
@@ -106,11 +98,8 @@
     <div id="mission-modal" class="modal">
         <span class="close-icon" id="close-mission">&times;</span>
         <h2 id="mission-title">MISSION CLEAR!</h2>
-        <p id="mission-desc">내용이 들어갑니다.</p>
-        
-        <a id="mission-link" href="#" target="_blank" class="modal-btn">
-            보러가기
-        </a>
+        <p id="mission-desc">내용</p>
+        <a id="mission-link" href="#" target="_blank" class="modal-btn">보러가기</a>
     </div>
 
     <div id="joystick-zone"></div>
@@ -148,12 +137,11 @@
         const island = new THREE.Mesh(new THREE.CylinderGeometry(islandRadius, islandRadius, 3, 64), new THREE.MeshStandardMaterial({ color: 0x90EE90 }));
         island.position.y = -1.5; island.receiveShadow = true; scene.add(island);
 
-        // --- 사과 시스템 ---
+        // --- 사과 & 미션 로직 ---
         let apples = [];
         let appleScore = 0;
         const scoreBoard = document.getElementById('score-board');
         
-        // 미션 UI 요소
         const missionModal = document.getElementById('mission-modal');
         const missionTitle = document.getElementById('mission-title');
         const missionDesc = document.getElementById('mission-desc');
@@ -163,15 +151,15 @@
             missionModal.style.display = 'block';
             
             if (type === 'survey') {
-                // 10개, 30개, 40개... 설문조사
+                // 10개, 30개, 40개... -> 설문조사
                 missionTitle.innerText = "🔍 성향 테스트";
-                missionDesc.innerHTML = "브랜딩 성향 테스트 설문입니다.<br>설문에 참여하면 성향을 보내드려요.";
+                missionDesc.innerHTML = "사과를 모으셨군요!<br>브랜딩 성향 테스트 설문에 참여하면<br>결과를 보내드립니다.";
                 missionLink.innerText = "설문 참여하기";
                 missionLink.href = "https://forms.gle/mFqTYTuciq7p8mCMA";
             } else if (type === 'insta') {
-                // 20개 인스타그램
+                // 20개 -> 인스타그램
                 missionTitle.innerText = "🎉 20개 돌파!";
-                missionDesc.innerHTML = "사과 20개를 모으셨군요!<br>히노맥 인스타그램을 확인해보세요.";
+                missionDesc.innerHTML = "대단해요! 사과 20개를 모았습니다.<br>히노맥의 더 많은 이야기를<br>인스타그램에서 확인해보세요.";
                 missionLink.innerText = "📸 인스타그램 구경가기";
                 missionLink.href = "https://www.instagram.com"; // ★ 여기에 인스타 주소 입력
             }
@@ -206,7 +194,7 @@
         }
 
         const trees = [];
-        for(let i=0; i<25; i++) { // 나무 개수 좀 늘림
+        for(let i=0; i<25; i++) {
             const angle = Math.random() * Math.PI * 2;
             const r = 8 + Math.random() * (islandRadius - 10);
             trees.push(createTree(Math.cos(angle) * r, Math.sin(angle) * r));
@@ -240,7 +228,6 @@
             }
         });
 
-        // NPC 설정
         loader.load(modelUrl, function (gltf) {
             npcModel = gltf.scene;
             npcModel.traverse(o => { 
@@ -265,39 +252,39 @@
         let verticalVelocity = 0; const gravity = -0.015; const jumpStrength = 0.4;
         let isGrounded = false; let isDead = false;
 
-        // ★ 3색 랜덤 조합 스타일 변경 함수 ★
+        // ★ 3색 랜덤 조합 개선된 함수 ★
         function changePlayerStyle() {
             if (!playerModel) return;
             
-            // 3가지 랜덤 색상 생성
-            const colorBody = new THREE.Color().setHex(Math.random() * 0xffffff);
+            // 3가지 랜덤 색상 생성 (Main, Joint, Detail)
+            const colorMain = new THREE.Color().setHex(Math.random() * 0xffffff);
             const colorJoint = new THREE.Color().setHex(Math.random() * 0xffffff);
             const colorDetail = new THREE.Color().setHex(Math.random() * 0xffffff);
 
             playerModel.traverse((o) => {
                 if (o.isMesh) {
+                    // 재질을 독립적으로 만듦
                     o.material = o.material.clone();
                     const name = o.name.toLowerCase();
 
-                    // 부위별 이름으로 색상 다르게 적용 (RobotExpressive 구조 추정)
-                    // 관절(Joint)이나 목(Neck) 등은 회색조 대신 colorJoint 사용
-                    // 눈(Eye)이나 디테일은 colorDetail 사용
-                    // 나머지는 몸통 colorBody 사용
-                    
-                    if (name.includes('joint') || name.includes('grey') || name.includes('neck')) {
+                    // 이름에 따른 부위별 색상 적용 로직 강화
+                    if (name.includes('joint') || name.includes('grey') || name.includes('dark')) {
+                        // 관절/회색 부위
                         o.material.color = colorJoint;
-                    } else if (name.includes('eye') || name.includes('brow')) {
+                    } else if (name.includes('eye') || name.includes('glass') || name.includes('head')) {
+                        // 눈/머리띠 등 포인트
                         o.material.color = colorDetail;
-                        o.material.emissive = colorDetail; // 눈은 빛나게
+                        o.material.emissive = colorDetail; // 빛나는 효과
                     } else {
-                        // 몸통, 팔, 다리 등
-                        o.material.color = colorBody;
+                        // 나머지 (몸통, 팔, 다리)
+                        o.material.color = colorMain;
                     }
                 }
             });
         }
         document.getElementById('style-btn').addEventListener('click', changePlayerStyle);
 
+        // 입력 이벤트 리스너들
         window.addEventListener('keydown', (e) => {
             if(isDead) return;
             if (e.code === 'KeyW') keys.w = true; if (e.code === 'KeyS') keys.s = true;
@@ -337,7 +324,7 @@
             fadeToAction('Idle', 0.5);
         }
 
-        // --- UI ---
+        // UI 모달 관리
         const npcLabel = document.getElementById('npc-label');
         const infoModal = document.getElementById('info-modal');
         
@@ -345,7 +332,6 @@
         npcLabel.addEventListener('touchstart', (e) => { e.preventDefault(); infoModal.style.display = 'block'; });
         
         function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
-        
         document.getElementById('close-info').onclick = () => closeModal('info-modal');
         document.getElementById('info-ok-btn').onclick = () => closeModal('info-modal');
         document.getElementById('close-mission').onclick = () => closeModal('mission-modal');
@@ -374,6 +360,7 @@
                 } else { npcLabel.style.display = 'none'; infoModal.style.display = 'none'; }
             }
 
+            // ★ 보상 로직 수정됨 ★
             if (playerModel) {
                 apples.forEach((apple) => {
                     if (apple.userData.isCollected) return;
@@ -382,23 +369,18 @@
                     const playerCenter = playerModel.position.clone().add(new THREE.Vector3(0, 1, 0));
                     const dist = playerCenter.distanceTo(apple.position);
 
-                    // 사과 획득
                     if (dist < 1.5) {
                         apple.userData.isCollected = true;
                         apple.visible = false;
-                        
-                        // ★ 점수 증가 및 보상 체크 ★
                         appleScore++;
                         scoreBoard.innerText = `🍎 ${appleScore}`;
                         
-                        // 10개 단위 체크 (10, 20, 30, 40...)
+                        // 로직 수정: 20개일 때만 인스타, 그 외 10단위는 설문조사
                         if (appleScore > 0 && appleScore % 10 === 0) {
                             if (appleScore === 20) {
-                                // 20개일 때: 인스타그램
-                                showMissionModal('insta');
+                                showMissionModal('insta'); // 20개
                             } else {
-                                // 10, 30, 40...일 때: 설문조사
-                                showMissionModal('survey');
+                                showMissionModal('survey'); // 10, 30, 40...
                             }
                         }
                     }
@@ -436,16 +418,13 @@
                     if (playerModel.position.y <= 0) { playerModel.position.y = 0; verticalVelocity = 0; isGrounded = true; }
                 } else { isGrounded = false; }
 
-                // ★ 낙사 시 사과 초기화 ★
+                // ★ 낙사 시 리셋 ★
                 if (playerModel.position.y < -2 && !isDead) {
                     isDead = true; fadeToAction('Death', 0.2);
                     
-                    // 사과 점수 초기화
+                    // 사과 리셋
                     appleScore = 0;
                     scoreBoard.innerText = `🍎 ${appleScore}`;
-
-                    // (선택) 맵에 있는 사과들 다시 보이게 리셋하려면 아래 주석 해제
-                    // apples.forEach(apple => { apple.visible = true; apple.userData.isCollected = false; });
 
                     document.getElementById('splash-screen').style.opacity = 0.8;
                     setTimeout(respawn, 2000);
