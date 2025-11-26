@@ -2,12 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My Coastal World - Step 2 (Character)</title>
+    <title>My Coastal World - Step 3 (Jump & Trees)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        
+        /* 설명 문구 스타일 복구 */
+        #instructions {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: bold;
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 10;
+        }
+
         #loading {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black;
+            transition: opacity 0.5s;
         }
     </style>
     <script type="importmap">
@@ -20,14 +37,14 @@
     </script>
 </head>
 <body>
-    <div id="loading">캐릭터를 모셔오는 중...</div>
+    <div id="instructions">WASD: 이동 | SPACE: 점프</div>
+    <div id="loading">로봇 조립 중...</div>
     
     <script type="module">
         import * as THREE from 'three';
-        // ★ 중요: 캐릭터를 불러오는 도구(GLTFLoader) 추가
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // --- 1. 기본 씬 설정 (이전과 동일) ---
+        // --- 1. 기본 씬 설정 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
@@ -40,7 +57,7 @@
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 조명 (이전과 동일) ---
+        // --- 2. 조명 ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
         const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -48,7 +65,7 @@
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // --- 3. 맵 (바다와 섬 - 이전과 동일) ---
+        // --- 3. 맵 (바다, 섬, 나무 복구!) ---
         const sea = new THREE.Mesh(
             new THREE.PlaneGeometry(1000, 1000),
             new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 })
@@ -58,70 +75,124 @@
         scene.add(sea);
 
         const island = new THREE.Mesh(
-            new THREE.CylinderGeometry(20, 20, 2, 64),
+            new THREE.CylinderGeometry(25, 25, 2, 64), // 섬을 좀 더 넓혔습니다
             new THREE.MeshStandardMaterial({ color: 0x90EE90 })
         );
         island.position.y = -0.5;
         island.receiveShadow = true;
         scene.add(island);
 
-        // --- 4. ★ 캐릭터 불러오기 ★ ---
+        // ★ 나무 생성 함수 복구 ★
+        function createTree(x, z) {
+            const group = new THREE.Group();
+            
+            // 기둥
+            const trunk = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8),
+                new THREE.MeshStandardMaterial({ color: 0x8B4513 })
+            );
+            trunk.position.y = 0.75;
+            trunk.castShadow = true;
+            
+            // 잎
+            const leaves = new THREE.Mesh(
+                new THREE.DodecahedronGeometry(1.2),
+                new THREE.MeshStandardMaterial({ color: 0x228B22 })
+            );
+            leaves.position.y = 2;
+            leaves.castShadow = true;
+
+            group.add(trunk);
+            group.add(leaves);
+            group.position.set(x, 0, z);
+            
+            // 애니메이션용 데이터
+            group.userData = { offset: Math.random() * 100 }; 
+            
+            scene.add(group);
+            return group;
+        }
+
+        // 나무 심기 루프
+        const trees = [];
+        for(let i=0; i<15; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 5 + Math.random() * 15; // 중앙 비우고 외곽에 심기
+            trees.push(createTree(Math.cos(angle) * radius, Math.sin(angle) * radius));
+        }
+
+        // --- 4. 캐릭터 & 애니메이션 ---
         let playerModel = null;
-        let mixer = null; // 애니메이션 관리자
-        let walkAction = null; // 걷기 동작
-        let idleAction = null; // 대기 동작
+        let mixer = null;
+        let actions = {}; // 동작들 저장소
+        let activeAction = null; // 현재 재생 중인 동작
 
         const loader = new GLTFLoader();
-
-        // Three.js 공식 예제에 있는 'RobotExpressive' 모델 URL (무료)
-        // 나중에 님이 구한 파일 경로(예: './my-character.glb')로 바꾸세요.
         const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
         loader.load(modelUrl, function (gltf) {
             playerModel = gltf.scene;
-            playerModel.traverse(function (object) {
-                if (object.isMesh) object.castShadow = true; // 그림자 켜기
-            });
+            playerModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
 
-            // 크기 조절 (모델마다 사이즈가 달라서 조절 필요)
             playerModel.scale.set(0.5, 0.5, 0.5); 
-            playerModel.position.y = 0.5; // 발이 땅에 닿게
+            playerModel.position.y = 0.5; // 땅 위에 배치
 
             scene.add(playerModel);
-            
-            // 로딩 문구 삭제
-            document.getElementById('loading').style.display = 'none';
+            document.getElementById('loading').style.opacity = 0; // 로딩 숨기기
 
             // 애니메이션 설정
             const animations = gltf.animations;
             if (animations && animations.length > 0) {
                 mixer = new THREE.AnimationMixer(playerModel);
                 
-                // 모델 안에 있는 애니메이션 이름 찾기 (Walking, Idle 등)
-                // 이 로봇 모델은 'Walking'과 'Idle'이라는 이름을 가지고 있음
-                const walkClip = THREE.AnimationClip.findByName(animations, 'Walking');
-                const idleClip = THREE.AnimationClip.findByName(animations, 'Idle');
-
-                if (walkClip) walkAction = mixer.clipAction(walkClip);
-                if (idleClip) idleAction = mixer.clipAction(idleClip);
+                // 필요한 동작 찾기
+                actions['Idle'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
+                actions['Walking'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Walking'));
+                actions['Jump'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Jump'));
                 
-                if (idleAction) idleAction.play(); // 처음엔 대기 상태
+                // 점프는 반복되면 안 되므로 설정
+                if(actions['Jump']) {
+                    actions['Jump'].setLoop(THREE.LoopOnce);
+                    actions['Jump'].clampWhenFinished = true;
+                }
+
+                activeAction = actions['Idle'];
+                activeAction.play();
             }
 
-        }, undefined, function (error) {
-            console.error(error);
-        });
+        }, undefined, function (error) { console.error(error); });
 
-        // --- 5. 컨트롤 변수 ---
-        const keys = { w: false, a: false, s: false, d: false };
+        // --- 5. 컨트롤 & 물리 변수 (점프 추가!) ---
+        const keys = { w: false, a: false, s: false, d: false, space: false };
         const playerSpeed = 0.15;
         
+        // ★ 점프 관련 변수 ★
+        let verticalVelocity = 0; // 수직 속도
+        const gravity = -0.015;   // 중력 (내려가는 힘)
+        const jumpStrength = 0.4; // 점프 힘 (올라가는 힘)
+        const groundLevel = 0.5;  // 바닥 높이
+        let isGrounded = true;    // 땅에 닿아있는지 확인
+
         window.addEventListener('keydown', (e) => {
-            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) keys[key] = true;
+            if (e.code === 'Space') keys.space = true; // 스페이스바
         });
         window.addEventListener('keyup', (e) => {
-            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
+            const key = e.key.toLowerCase();
+            if (keys.hasOwnProperty(key)) keys[key] = false;
+            if (e.code === 'Space') keys.space = false;
         });
+
+        // 애니메이션 전환 함수
+        function fadeToAction(name, duration) {
+            if (!actions[name] || activeAction === actions[name]) return;
+            const previousAction = activeAction;
+            activeAction = actions[name];
+            
+            if (previousAction) previousAction.fadeOut(duration);
+            activeAction.reset().fadeIn(duration).play();
+        }
 
         // --- 6. 애니메이션 루프 ---
         const clock = new THREE.Clock();
@@ -129,14 +200,12 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            
-            const delta = clock.getDelta(); // 프레임 사이 시간 (애니메이션용)
+            const delta = clock.getDelta();
 
-            // 믹서 업데이트 (애니메이션 재생)
             if (mixer) mixer.update(delta);
 
             if (playerModel) {
-                // 이동 로직
+                // 1. 이동 (WASD)
                 let moveX = 0;
                 let moveZ = 0;
                 let isMoving = false;
@@ -149,37 +218,50 @@
                 playerModel.position.x += moveX;
                 playerModel.position.z += moveZ;
 
-                // 회전 및 애니메이션 전환
+                // 2. 점프 & 중력 처리 (핵심!)
+                if (keys.space && isGrounded) {
+                    verticalVelocity = jumpStrength; // 위로 솟구침
+                    isGrounded = false;
+                    
+                    // 점프 애니메이션 재생 (있으면)
+                    fadeToAction('Jump', 0.1);
+                }
+
+                // 중력 적용
+                verticalVelocity += gravity; 
+                playerModel.position.y += verticalVelocity;
+
+                // 땅에 닿았는지 체크 (간단한 충돌 처리)
+                if (playerModel.position.y <= groundLevel) {
+                    playerModel.position.y = groundLevel; // 땅 위로 고정
+                    verticalVelocity = 0;
+                    isGrounded = true;
+                }
+
+                // 3. 회전 및 걷기 애니메이션
                 if (isMoving) {
                     const angle = Math.atan2(moveX, moveZ);
-                    // 부드러운 회전
-                    const targetRotation = angle;
-                    // 현재 각도에서 타겟 각도로 조금씩 회전 (Lerp와 비슷한 원리)
-                    // 쿼터니언 회전이 복잡하니 여기서는 간단히 바로 보게 설정
                     playerModel.rotation.y = angle;
-
-                    // 걷기 애니메이션 실행
-                    if (walkAction && !walkAction.isRunning()) {
-                        if (idleAction) idleAction.fadeOut(0.5); // 대기 동작 서서히 끔
-                        walkAction.reset().fadeIn(0.5).play();   // 걷기 동작 서서히 킴
-                    }
+                    
+                    if (isGrounded) fadeToAction('Walking', 0.2);
                 } else {
-                    // 멈춤: 대기 애니메이션 실행
-                    if (idleAction && !idleAction.isRunning()) {
-                        if (walkAction) walkAction.fadeOut(0.5);
-                        idleAction.reset().fadeIn(0.5).play();
+                    if (isGrounded && (!actions['Jump'] || !actions['Jump'].isRunning())) {
+                        fadeToAction('Idle', 0.2);
                     }
                 }
 
-                // 카메라 추적
+                // 4. 카메라 추적 (점프할 때 카메라도 같이 위로 가도록)
                 const targetCameraPos = playerModel.position.clone().add(cameraOffset);
-                camera.position.lerp(targetCameraPos, 0.05);
+                camera.position.lerp(targetCameraPos, 0.1); // 0.1로 높여서 좀 더 빠릿하게
                 camera.lookAt(playerModel.position);
             }
 
-            // 바다 움직임 등 기타 효과
+            // 환경 효과
             const time = Date.now() * 0.001;
             sea.position.y = -1 + Math.sin(time * 0.5) * 0.1;
+            trees.forEach(tree => {
+                tree.rotation.z = Math.sin(time * 2 + tree.userData.offset) * 0.05;
+            });
 
             renderer.render(scene, camera);
         }
