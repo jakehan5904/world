@@ -2,25 +2,78 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Super Mario World 3D</title>
+    <title>HiNOMAD WORLD</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         
-        /* UI 스타일 */
+        /* UI: 조작 설명 */
         #instructions {
             position: absolute; top: 20px; width: 100%; text-align: center;
-            color: white; font-family: sans-serif; font-weight: bold; font-size: 1.2rem;
+            color: white; font-family: 'Inter', sans-serif; font-weight: bold; font-size: 1.2rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; z-index: 10;
         }
+        
+        /* UI: 로딩 화면 */
         #loading {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black;
             transition: opacity 0.5s; pointer-events: none;
         }
+        
+        /* UI: 물에 빠짐 효과 */
         #splash-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 100, 255, 0.5); opacity: 0;
             pointer-events: none; transition: opacity 0.2s; z-index: 5;
+        }
+
+        /* ★ UI: NPC 말풍선 버튼 (평소엔 숨김) ★ */
+        #npc-label {
+            position: absolute;
+            background: white;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-family: sans-serif;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transform: translate(-50%, -100%); /* 중앙 정렬 */
+            display: none; /* 안 보임 */
+            z-index: 20;
+            border: 2px solid #00ffff;
+        }
+        #npc-label:hover {
+            background: #00ffff;
+            color: black;
+        }
+
+        /* ★ UI: 설명 모달창 (팝업) ★ */
+        #info-modal {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none; /* 안 보임 */
+            z-index: 30;
+            backdrop-filter: blur(5px);
+            border: 1px solid #555;
+            min-width: 300px;
+        }
+        #info-modal h2 { margin-top: 0; color: #00ffff; }
+        #info-modal p { font-size: 1.2rem; line-height: 1.6; }
+        #close-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #00ffff;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
         }
     </style>
     <script type="importmap">
@@ -33,23 +86,23 @@
     </script>
 </head>
 <body>
-    <div id="instructions">WASD: 이동 | SPACE: 점프 (한글키 OK)</div>
-    <div id="loading">마리오 모셔오는 중... (F12 콘솔 확인)</div>
+    <div id="instructions">WASD: 이동 | SPACE: 점프 | NPC를 찾아보세요!</div>
+    <div id="loading">HiNOMAD WORLD 생성 중...</div>
     <div id="splash-screen"></div>
+
+    <div id="npc-label">About HiNOMAD 💬</div>
+
+    <div id="info-modal">
+        <h2>HiNOMAD</h2>
+        <p>IT 브랜딩 컴퍼니<br>We create the future.</p>
+        <button id="close-btn">닫기</button>
+    </div>
     
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // ==========================================
-        // ★ 설정 구역 (여기서 숫자를 바꾸세요!) ★
-        // ==========================================
-        const MODEL_URL = './mario.glb'; // 마리오 파일명
-        const MARIO_SCALE = 0.01;        // ★ 마리오 크기 (너무 크면 0.01, 너무 작으면 1.0)
-        const ISLAND_RADIUS = 24;        // 섬 크기
-        // ==========================================
-
-        // 1. 기본 씬 설정
+        // 1. 씬 설정
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
         scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
@@ -69,7 +122,7 @@
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // 3. 맵 생성 (바다 & 섬 & 나무)
+        // 3. 맵 (바다 & 섬)
         const sea = new THREE.Mesh(
             new THREE.PlaneGeometry(1000, 1000),
             new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 })
@@ -78,14 +131,16 @@
         sea.position.y = -1.5;
         scene.add(sea);
 
+        const islandRadius = 30; // 섬을 좀 더 키웠습니다
         const island = new THREE.Mesh(
-            new THREE.CylinderGeometry(ISLAND_RADIUS, ISLAND_RADIUS, 3, 64),
+            new THREE.CylinderGeometry(islandRadius, islandRadius, 3, 64),
             new THREE.MeshStandardMaterial({ color: 0x90EE90 })
         );
         island.position.y = -1.5;
         island.receiveShadow = true;
         scene.add(island);
 
+        // 나무 심기
         function createTree(x, z) {
             const group = new THREE.Group();
             const trunk = new THREE.Mesh(
@@ -106,101 +161,90 @@
         }
 
         const trees = [];
-        for(let i=0; i<15; i++) {
+        for(let i=0; i<20; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const r = 5 + Math.random() * (ISLAND_RADIUS - 8);
+            const r = 8 + Math.random() * (islandRadius - 10);
             trees.push(createTree(Math.cos(angle) * r, Math.sin(angle) * r));
         }
 
-        // 4. 캐릭터 로드 및 애니메이션 처리
-        let playerModel = null;
-        let mixer = null;
-        let actions = {};
+        // --- 4. 캐릭터 로드 (플레이어 & NPC) ---
+        let playerModel = null, npcModel = null;
+        let playerMixer = null, npcMixer = null;
+        let playerActions = {}, npcActions = {};
         let activeAction = null;
+        
         const loader = new GLTFLoader();
+        const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
-        // 이름으로 애니메이션 찾는 도우미 함수
-        function findClip(animations, nameList) {
-            if (!animations) return null;
-            for (const name of nameList) {
-                const clip = animations.find(c => c.name.toLowerCase().includes(name.toLowerCase()));
-                if (clip) return clip;
-            }
-            return null;
-        }
-
-        loader.load(MODEL_URL, function (gltf) {
+        // 4-1. 플레이어 로드
+        loader.load(modelUrl, function (gltf) {
             playerModel = gltf.scene;
             playerModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
-
-            // ★ 크기 조절 적용
-            playerModel.scale.set(MARIO_SCALE, MARIO_SCALE, MARIO_SCALE);
-            playerModel.position.y = 10; // 하늘에서 등장
-
+            playerModel.scale.set(0.5, 0.5, 0.5);
+            playerModel.position.set(0, 10, 0); // 하늘 등장
             scene.add(playerModel);
+            
             document.getElementById('loading').style.opacity = 0;
 
-            // 콘솔에 애니메이션 정보 출력 (F12 확인용)
-            console.log("발견된 애니메이션:", gltf.animations);
+            const animations = gltf.animations;
+            if (animations && animations.length > 0) {
+                playerMixer = new THREE.AnimationMixer(playerModel);
+                playerActions['Idle'] = playerMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
+                playerActions['Walking'] = playerMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Walking'));
+                playerActions['Jump'] = playerMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Jump'));
+                playerActions['Death'] = playerMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Death'));
 
-            const anims = gltf.animations;
-            if (anims && anims.length > 0) {
-                mixer = new THREE.AnimationMixer(playerModel);
-
-                // 1. 동작 찾기 시도
-                let idleClip = findClip(anims, ['Idle', 'Stand', 'Wait']);
-                let walkClip = findClip(anims, ['Run', 'Walk', 'Move']);
-                let jumpClip = findClip(anims, ['Jump', 'Hop']);
-                let swimClip = findClip(anims, ['Swim']);
-
-                // ★ 긴급 처방: Idle이나 Walk를 못 찾았으면, 그냥 첫 번째 동작(0번)을 쓴다!
-                // (T자 자세 방지용)
-                if (!idleClip && !walkClip) {
-                    console.warn("특정 동작을 못 찾아서 첫 번째 동작을 강제로 적용합니다.");
-                    idleClip = anims[0];
-                    walkClip = anims[0];
+                if(playerActions['Jump']) {
+                    playerActions['Jump'].setLoop(THREE.LoopOnce);
+                    playerActions['Jump'].clampWhenFinished = true;
+                }
+                if(playerActions['Death']) {
+                    playerActions['Death'].setLoop(THREE.LoopOnce);
+                    playerActions['Death'].clampWhenFinished = true;
                 }
 
-                // 액션 등록
-                if (idleClip) actions['Idle'] = mixer.clipAction(idleClip);
-                if (walkClip) actions['Walking'] = mixer.clipAction(walkClip);
-                if (jumpClip) {
-                    actions['Jump'] = mixer.clipAction(jumpClip);
-                    actions['Jump'].setLoop(THREE.LoopOnce);
-                    actions['Jump'].clampWhenFinished = true;
-                }
-                if (swimClip) actions['Swim'] = mixer.clipAction(swimClip);
-
-                // 시작 애니메이션 재생
-                if (actions['Idle']) {
-                    activeAction = actions['Idle'];
-                    activeAction.play();
-                } else {
-                    // 진짜 아무것도 없으면 첫번째거라도 재생
-                     mixer.clipAction(anims[0]).play();
-                }
-            } else {
-                console.error("이 파일에는 애니메이션이 전혀 없습니다!");
-                document.getElementById('loading').innerText = "애니메이션 없음 (T-Pose 주의)";
-                document.getElementById('loading').style.opacity = 1;
+                activeAction = playerActions['Idle'];
+                activeAction.play();
             }
-
-        }, undefined, function(err) {
-            console.error(err);
-            document.getElementById('loading').innerText = "파일 로드 실패 (파일명 확인)";
         });
 
-        // 5. 컨트롤 & 물리 변수
+        // 4-2. NPC 로드 (똑같은 로봇을 하나 더 로드)
+        loader.load(modelUrl, function (gltf) {
+            npcModel = gltf.scene;
+            npcModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
+            npcModel.scale.set(0.5, 0.5, 0.5);
+            
+            // ★ NPC 위치 설정 (섬 한쪽에 배치) ★
+            npcModel.position.set(10, 0, -5); 
+            npcModel.rotation.y = -Math.PI / 2; // 플레이어 쪽 바라보게
+
+            scene.add(npcModel);
+
+            const animations = gltf.animations;
+            if (animations && animations.length > 0) {
+                npcMixer = new THREE.AnimationMixer(npcModel);
+                // NPC는 계속 손을 흔들게 설정 (Wave 동작이 없으면 Dance나 Jump 등 활용)
+                // RobotExpressive에는 'Wave'가 없어서 'Dance'나 'Jump'를 루프로 돌림
+                // 여기서는 'Jump'를 반복시켜서 신나보이게 함
+                const npcAction = npcMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Dance'));
+                if(npcAction) npcAction.play();
+                else {
+                     // 댄스가 없으면 Idle
+                     const idle = npcMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
+                     if(idle) idle.play();
+                }
+            }
+        });
+
+        // --- 5. 컨트롤 & 물리 ---
         const keys = { w: false, a: false, s: false, d: false, space: false };
         const playerSpeed = 0.15;
         let verticalVelocity = 0;
         const gravity = -0.015;
         const jumpStrength = 0.4;
-        const groundLevel = 0.0;
         let isGrounded = false;
         let isDead = false;
 
-        // ★ 한글 키보드 지원 (e.code 사용)
         window.addEventListener('keydown', (e) => {
             if(isDead) return;
             if (e.code === 'KeyW') keys.w = true;
@@ -217,26 +261,40 @@
             if (e.code === 'Space') keys.space = false;
         });
 
-        // 애니메이션 부드럽게 전환
         function fadeToAction(name, duration) {
-            if (!actions[name] || activeAction === actions[name]) return;
+            if (!playerActions[name] || activeAction === playerActions[name]) return;
             const previousAction = activeAction;
-            activeAction = actions[name];
+            activeAction = playerActions[name];
             if (previousAction) previousAction.fadeOut(duration);
             activeAction.reset().fadeIn(duration).play();
         }
 
-        // 부활 로직
         function respawn() {
             playerModel.position.set(0, 10, 0);
             verticalVelocity = 0;
             isDead = false;
             isGrounded = false;
             document.getElementById('splash-screen').style.opacity = 0;
-            if(actions['Idle']) fadeToAction('Idle', 0.5);
+            fadeToAction('Idle', 0.5);
         }
 
-        // 6. 게임 루프
+        // --- 6. UI 이벤트 (NPC 대화) ---
+        const npcLabel = document.getElementById('npc-label');
+        const infoModal = document.getElementById('info-modal');
+        const closeBtn = document.getElementById('close-btn');
+
+        // 말풍선 클릭 시 모달 열기
+        npcLabel.addEventListener('click', () => {
+            infoModal.style.display = 'block';
+        });
+
+        // 닫기 버튼 클릭 시 모달 닫기
+        closeBtn.addEventListener('click', () => {
+            infoModal.style.display = 'none';
+        });
+
+
+        // --- 7. 게임 루프 ---
         const clock = new THREE.Clock();
         const cameraOffset = new THREE.Vector3(0, 10, 14);
 
@@ -244,9 +302,37 @@
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
 
-            if (mixer) mixer.update(delta);
+            if (playerMixer) playerMixer.update(delta);
+            if (npcMixer) npcMixer.update(delta);
+
+            // ★ NPC 상호작용 로직 (거리 계산) ★
+            if (playerModel && npcModel) {
+                const dist = playerModel.position.distanceTo(npcModel.position);
+                
+                // 거리 5m 이내면 말풍선 표시
+                if (dist < 5) {
+                    npcLabel.style.display = 'block';
+                    
+                    // 3D 좌표 -> 2D 화면 좌표 변환 (머리 위에 띄우기)
+                    // NPC 머리 위치 (키가 대략 2m라고 가정하고 y+2)
+                    const npcHeadPos = npcModel.position.clone().add(new THREE.Vector3(0, 2.5, 0));
+                    npcHeadPos.project(camera); // 화면 좌표(-1 ~ 1)로 변환
+
+                    const x = (npcHeadPos.x * .5 + .5) * window.innerWidth;
+                    const y = (-(npcHeadPos.y * .5) + .5) * window.innerHeight;
+
+                    npcLabel.style.left = `${x}px`;
+                    npcLabel.style.top = `${y}px`;
+
+                } else {
+                    npcLabel.style.display = 'none';
+                    infoModal.style.display = 'none'; // 멀어지면 창도 닫기 (선택사항)
+                }
+            }
+
 
             if (playerModel) {
+                // 이동 및 물리 (기존과 동일)
                 let moveX = 0, moveZ = 0, isMoving = false;
 
                 if (!isDead) {
@@ -259,24 +345,21 @@
                 playerModel.position.x += moveX;
                 playerModel.position.z += moveZ;
 
-                // 낙사 체크
                 const dist = Math.sqrt(playerModel.position.x**2 + playerModel.position.z**2);
-                const isOnIsland = dist < (ISLAND_RADIUS - 1);
+                const isOnIsland = dist < (islandRadius - 1);
 
-                // 점프 & 중력
                 if (keys.space && isGrounded && !isDead) {
                     verticalVelocity = jumpStrength;
                     isGrounded = false;
-                    if(actions['Jump']) fadeToAction('Jump', 0.1);
+                    fadeToAction('Jump', 0.1);
                 }
 
                 verticalVelocity += gravity;
                 playerModel.position.y += verticalVelocity;
 
-                // 바닥 충돌
                 if (isOnIsland) {
-                    if (playerModel.position.y <= groundLevel) {
-                        playerModel.position.y = groundLevel;
+                    if (playerModel.position.y <= 0) {
+                        playerModel.position.y = 0;
                         verticalVelocity = 0;
                         isGrounded = true;
                     }
@@ -284,38 +367,30 @@
                     isGrounded = false;
                 }
 
-                // 사망 체크 (물에 빠짐)
                 if (playerModel.position.y < -2 && !isDead) {
                     isDead = true;
-                    // 수영 모션 있으면 재생, 없으면 점프나 걷기로 대체
-                    if (actions['Swim']) fadeToAction('Swim', 0.2);
-                    else if (actions['Jump']) fadeToAction('Jump', 0.2);
-                    
+                    fadeToAction('Death', 0.2);
                     document.getElementById('splash-screen').style.opacity = 0.8;
                     setTimeout(respawn, 2000);
                 }
 
-                // 회전 및 걷기 모션
                 if (isMoving && !isDead) {
                     const angle = Math.atan2(moveX, moveZ);
                     playerModel.rotation.y = angle;
                     if (isGrounded) fadeToAction('Walking', 0.2);
                 } else {
                     if (isGrounded && !isDead) {
-                        // 점프 중이 아닐 때만 Idle
-                        if (!actions['Jump'] || !actions['Jump'].isRunning()) {
+                        if (!playerActions['Jump'] || !playerActions['Jump'].isRunning()) {
                             fadeToAction('Idle', 0.2);
                         }
                     }
                 }
 
-                // 카메라 추적
                 const targetCameraPos = playerModel.position.clone().add(cameraOffset);
                 camera.position.lerp(targetCameraPos, 0.1);
                 camera.lookAt(playerModel.position);
             }
 
-            // 환경 효과
             const time = Date.now() * 0.001;
             sea.position.y = -1.5 + Math.sin(time * 0.5) * 0.1;
             trees.forEach(tree => {
