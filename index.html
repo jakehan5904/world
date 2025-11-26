@@ -2,19 +2,12 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My Coastal World - Step 1</title>
+    <title>My Coastal World - Step 2 (Character)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
-        #instructions {
-            position: absolute;
-            top: 20px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            font-family: sans-serif;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-            pointer-events: none;
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black;
         }
     </style>
     <script type="importmap">
@@ -27,192 +20,172 @@
     </script>
 </head>
 <body>
-    <div id="instructions">WASD 키로 이동해보세요!</div>
+    <div id="loading">캐릭터를 모셔오는 중...</div>
     
     <script type="module">
         import * as THREE from 'three';
+        // ★ 중요: 캐릭터를 불러오는 도구(GLTFLoader) 추가
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // --- 1. 기본 씬 설정 ---
+        // --- 1. 기본 씬 설정 (이전과 동일) ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // 맑은 하늘색
-        scene.fog = new THREE.Fog(0x87CEEB, 20, 100); // 멀리 있는 건 안개로 가리기
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 100);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true; // 그림자 켜기 (중요!)
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 부드러운 그림자
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 조명 설정 (Coastal World 느낌의 화사함) ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 전체적으로 밝게
+        // --- 2. 조명 (이전과 동일) ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
-
-        const sunLight = new THREE.DirectionalLight(0xffffff, 1.2); // 태양광
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
         sunLight.position.set(20, 50, 20);
-        sunLight.castShadow = true; // 그림자 생성
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
-        sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 100;
-        sunLight.shadow.camera.left = -30;
-        sunLight.shadow.camera.right = 30;
-        sunLight.shadow.camera.top = 30;
-        sunLight.shadow.camera.bottom = -30;
+        sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // --- 3. 맵 만들기 (바다와 섬) ---
-        
-        // (1) 바다
-        const seaGeometry = new THREE.PlaneGeometry(1000, 1000);
-        const seaMaterial = new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 });
-        const sea = new THREE.Mesh(seaGeometry, seaMaterial);
+        // --- 3. 맵 (바다와 섬 - 이전과 동일) ---
+        const sea = new THREE.Mesh(
+            new THREE.PlaneGeometry(1000, 1000),
+            new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 })
+        );
         sea.rotation.x = -Math.PI / 2;
-        sea.position.y = -1; // 섬보다 조금 아래에
+        sea.position.y = -1;
         scene.add(sea);
 
-        // (2) 섬 (모래사장 + 잔디)
-        const islandGeometry = new THREE.CylinderGeometry(20, 20, 2, 64);
-        const islandMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90 }); // 연두색 잔디
-        const island = new THREE.Mesh(islandGeometry, islandMaterial);
+        const island = new THREE.Mesh(
+            new THREE.CylinderGeometry(20, 20, 2, 64),
+            new THREE.MeshStandardMaterial({ color: 0x90EE90 })
+        );
         island.position.y = -0.5;
-        island.receiveShadow = true; // 그림자 받기
+        island.receiveShadow = true;
         scene.add(island);
 
-        // (3) 나무 심기 (장식)
-        function createTree(x, z) {
-            const group = new THREE.Group();
+        // --- 4. ★ 캐릭터 불러오기 ★ ---
+        let playerModel = null;
+        let mixer = null; // 애니메이션 관리자
+        let walkAction = null; // 걷기 동작
+        let idleAction = null; // 대기 동작
+
+        const loader = new GLTFLoader();
+
+        // Three.js 공식 예제에 있는 'RobotExpressive' 모델 URL (무료)
+        // 나중에 님이 구한 파일 경로(예: './my-character.glb')로 바꾸세요.
+        const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+
+        loader.load(modelUrl, function (gltf) {
+            playerModel = gltf.scene;
+            playerModel.traverse(function (object) {
+                if (object.isMesh) object.castShadow = true; // 그림자 켜기
+            });
+
+            // 크기 조절 (모델마다 사이즈가 달라서 조절 필요)
+            playerModel.scale.set(0.5, 0.5, 0.5); 
+            playerModel.position.y = 0.5; // 발이 땅에 닿게
+
+            scene.add(playerModel);
             
-            // 나무 기둥
-            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 1.5, 8);
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            trunk.position.y = 0.75;
-            trunk.castShadow = true;
-            
-            // 나뭇잎
-            const leavesGeo = new THREE.DodecahedronGeometry(1.2);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
-            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-            leaves.position.y = 2;
-            leaves.castShadow = true;
+            // 로딩 문구 삭제
+            document.getElementById('loading').style.display = 'none';
 
-            group.add(trunk);
-            group.add(leaves);
-            group.position.set(x, 0, z);
-            
-            // 나무가 통통 튀는 애니메이션을 위해 저장
-            group.userData = { offset: Math.random() * 100 }; 
-            
-            scene.add(group);
-            return group;
-        }
+            // 애니메이션 설정
+            const animations = gltf.animations;
+            if (animations && animations.length > 0) {
+                mixer = new THREE.AnimationMixer(playerModel);
+                
+                // 모델 안에 있는 애니메이션 이름 찾기 (Walking, Idle 등)
+                // 이 로봇 모델은 'Walking'과 'Idle'이라는 이름을 가지고 있음
+                const walkClip = THREE.AnimationClip.findByName(animations, 'Walking');
+                const idleClip = THREE.AnimationClip.findByName(animations, 'Idle');
 
-        const trees = [];
-        for(let i=0; i<10; i++) {
-            // 섬 안에 랜덤하게 배치 (원형 분포)
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 15;
-            trees.push(createTree(Math.cos(angle) * radius, Math.sin(angle) * radius));
-        }
+                if (walkClip) walkAction = mixer.clipAction(walkClip);
+                if (idleClip) idleAction = mixer.clipAction(idleClip);
+                
+                if (idleAction) idleAction.play(); // 처음엔 대기 상태
+            }
 
-        // --- 4. 플레이어 만들기 ---
-        const playerGroup = new THREE.Group(); // 플레이어 전체 그룹
-        scene.add(playerGroup);
+        }, undefined, function (error) {
+            console.error(error);
+        });
 
-        // 플레이어 몸체 (일단 큐브)
-        const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFF6347 }); // 토마토색
-        const playerMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        playerMesh.position.y = 0.5; // 바닥 위에 서 있게
-        playerMesh.castShadow = true;
-        playerGroup.add(playerMesh);
-
-        // 눈 달아주기 (앞뒤 구분용)
-        const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-        leftEye.position.set(-0.25, 0.7, 0.5);
-        rightEye.position.set(0.25, 0.7, 0.5);
-        playerGroup.add(leftEye);
-        playerGroup.add(rightEye);
-
-
-        // --- 5. 컨트롤 로직 (부드러운 이동) ---
+        // --- 5. 컨트롤 변수 ---
         const keys = { w: false, a: false, s: false, d: false };
         const playerSpeed = 0.15;
         
-        // 키보드 이벤트
         window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            if (keys.hasOwnProperty(key)) keys[key] = true;
+            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true;
         });
         window.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            if (keys.hasOwnProperty(key)) keys[key] = false;
+            if (keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false;
         });
 
-        // 카메라 설정
-        // 플레이어 뒤통수 위쪽에 위치
-        const cameraOffset = new THREE.Vector3(0, 8, 12); 
-
-        // --- 6. 애니메이션 루프 (게임 로직) ---
+        // --- 6. 애니메이션 루프 ---
         const clock = new THREE.Clock();
+        const cameraOffset = new THREE.Vector3(0, 8, 12);
 
         function animate() {
             requestAnimationFrame(animate);
-            const time = clock.getElapsedTime();
+            
+            const delta = clock.getDelta(); // 프레임 사이 시간 (애니메이션용)
 
-            // 1. 플레이어 이동 처리
-            let moveX = 0;
-            let moveZ = 0;
+            // 믹서 업데이트 (애니메이션 재생)
+            if (mixer) mixer.update(delta);
 
-            if (keys.w) moveZ -= playerSpeed;
-            if (keys.s) moveZ += playerSpeed;
-            if (keys.a) moveX -= playerSpeed;
-            if (keys.d) moveX += playerSpeed;
+            if (playerModel) {
+                // 이동 로직
+                let moveX = 0;
+                let moveZ = 0;
+                let isMoving = false;
 
-            // 이동 실행
-            playerGroup.position.x += moveX;
-            playerGroup.position.z += moveZ;
+                if (keys.w) { moveZ -= playerSpeed; isMoving = true; }
+                if (keys.s) { moveZ += playerSpeed; isMoving = true; }
+                if (keys.a) { moveX -= playerSpeed; isMoving = true; }
+                if (keys.d) { moveX += playerSpeed; isMoving = true; }
 
-            // 2. 플레이어 회전 (이동하는 방향 바라보기)
-            if (moveX !== 0 || moveZ !== 0) {
-                // 아크탄젠트로 각도 구하기
-                const angle = Math.atan2(moveX, moveZ);
-                // 부드럽게 회전 (Lerp)
-                playerGroup.rotation.y = angle;
-                
-                // 걷는 느낌 (통통 튀기)
-                playerMesh.position.y = 0.5 + Math.abs(Math.sin(time * 10)) * 0.1;
-            } else {
-                playerMesh.position.y = 0.5; // 멈추면 원위치
+                playerModel.position.x += moveX;
+                playerModel.position.z += moveZ;
+
+                // 회전 및 애니메이션 전환
+                if (isMoving) {
+                    const angle = Math.atan2(moveX, moveZ);
+                    // 부드러운 회전
+                    const targetRotation = angle;
+                    // 현재 각도에서 타겟 각도로 조금씩 회전 (Lerp와 비슷한 원리)
+                    // 쿼터니언 회전이 복잡하니 여기서는 간단히 바로 보게 설정
+                    playerModel.rotation.y = angle;
+
+                    // 걷기 애니메이션 실행
+                    if (walkAction && !walkAction.isRunning()) {
+                        if (idleAction) idleAction.fadeOut(0.5); // 대기 동작 서서히 끔
+                        walkAction.reset().fadeIn(0.5).play();   // 걷기 동작 서서히 킴
+                    }
+                } else {
+                    // 멈춤: 대기 애니메이션 실행
+                    if (idleAction && !idleAction.isRunning()) {
+                        if (walkAction) walkAction.fadeOut(0.5);
+                        idleAction.reset().fadeIn(0.5).play();
+                    }
+                }
+
+                // 카메라 추적
+                const targetCameraPos = playerModel.position.clone().add(cameraOffset);
+                camera.position.lerp(targetCameraPos, 0.05);
+                camera.lookAt(playerModel.position);
             }
 
-            // 3. 나무 흔들리기 효과 (Coastal World 느낌)
-            trees.forEach(tree => {
-                tree.rotation.z = Math.sin(time * 2 + tree.userData.offset) * 0.05;
-            });
-
-            // 4. 바다 물결 효과 (높이 조절)
+            // 바다 움직임 등 기타 효과
+            const time = Date.now() * 0.001;
             sea.position.y = -1 + Math.sin(time * 0.5) * 0.1;
-
-            // 5. 카메라가 플레이어를 부드럽게 따라다니기 (Lerp)
-            // 목표 위치: 플레이어 위치 + 오프셋
-            const targetCameraPos = playerGroup.position.clone().add(cameraOffset);
-            
-            // 현재 위치에서 목표 위치로 5%씩 접근 (부드러움의 핵심)
-            camera.position.lerp(targetCameraPos, 0.05);
-            camera.lookAt(playerGroup.position);
 
             renderer.render(scene, camera);
         }
 
         animate();
 
-        // 리사이즈
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
