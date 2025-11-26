@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My Coastal World - Step 4 (Falling Logic)</title>
+    <title>HiNOMAD WORLD</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         
@@ -26,7 +26,6 @@
             transition: opacity 0.5s;
         }
 
-        /* 물에 빠졌을 때 화면이 퍼렇게 변하는 효과 */
         #splash-screen {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -47,8 +46,8 @@
     </script>
 </head>
 <body>
-    <div id="instructions">WASD: 이동 | SPACE: 점프 | ⚠️ 물에 빠지지 마세요!</div>
-    <div id="loading">로봇 조립 중...</div>
+    <div id="instructions">WASD: 이동 | SPACE: 점프 (한글키 OK)</div>
+    <div id="loading">마리오 모셔오는 중...</div>
     <div id="splash-screen"></div>
     
     <script type="module">
@@ -82,17 +81,15 @@
             new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 })
         );
         sea.rotation.x = -Math.PI / 2;
-        sea.position.y = -1.5; // 바다 높이
+        sea.position.y = -1.5;
         scene.add(sea);
 
-        // 섬 반지름 설정 (중요!)
         const islandRadius = 24; 
-
         const island = new THREE.Mesh(
             new THREE.CylinderGeometry(islandRadius, islandRadius, 3, 64),
             new THREE.MeshStandardMaterial({ color: 0x90EE90 })
         );
-        island.position.y = -1.5; // 바다랑 높이 맞추기 위해 조정
+        island.position.y = -1.5;
         island.receiveShadow = true;
         scene.add(island);
 
@@ -122,74 +119,110 @@
         const trees = [];
         for(let i=0; i<15; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const r = 5 + Math.random() * (islandRadius - 8); // 섬 안쪽에만 심기
+            const r = 5 + Math.random() * (islandRadius - 8); 
             trees.push(createTree(Math.cos(angle) * r, Math.sin(angle) * r));
         }
 
-        // --- 4. 캐릭터 로드 ---
+        // --- 4. 마리오 캐릭터 로드 ---
         let playerModel = null;
         let mixer = null;
         let actions = {};
         let activeAction = null;
 
         const loader = new GLTFLoader();
-        // 무료 로봇 모델
-        const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+        
+        // ★ 파일명을 가지고 계신 마리오 파일명으로 꼭 확인하세요! (.glb 권장)
+        const modelUrl = './mario_obj.glb'; 
+
+        // 헬퍼 함수: 이름이 조금 달라도 애니메이션을 찾아주는 함수
+        function findAnimation(animations, ...names) {
+            for (const name of names) {
+                // 대소문자 무시하고 포함된 단어 찾기
+                const clip = animations.find(clip => clip.name.toLowerCase().includes(name.toLowerCase()));
+                if (clip) return clip;
+            }
+            return null;
+        }
 
         loader.load(modelUrl, function (gltf) {
             playerModel = gltf.scene;
             playerModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
-            playerModel.scale.set(0.5, 0.5, 0.5); 
-            playerModel.position.y = 5; // 처음에 하늘에서 떨어지게 등장!
+
+            // ★ 마리오 크기 조절 (너무 크거나 작으면 이 숫자를 바꾸세요)
+            playerModel.scale.set(1.0, 1.0, 1.0); 
+            playerModel.position.y = 10; // 하늘에서 등장
 
             scene.add(playerModel);
             document.getElementById('loading').style.opacity = 0;
 
+            // 콘솔에 애니메이션 목록 출력 (F12 눌러서 이름 확인 가능)
+            console.log("마리오 애니메이션 목록:", gltf.animations);
+
             const animations = gltf.animations;
             if (animations && animations.length > 0) {
                 mixer = new THREE.AnimationMixer(playerModel);
-                actions['Idle'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
-                actions['Walking'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Walking'));
-                actions['Jump'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Jump'));
-                // 떨어질 때 쓰는 모션 (Death나 ThumbsUp 같은 걸 활용)
-                actions['Death'] = mixer.clipAction(THREE.AnimationClip.findByName(animations, 'Death'));
+                
+                // 1. 대기 동작 (Idle이 없으면 첫 번째 거라도 씀)
+                const idleClip = findAnimation(animations, 'Idle', 'Stand', 'Wait') || animations[0];
+                actions['Idle'] = mixer.clipAction(idleClip);
 
-                if(actions['Jump']) {
+                // 2. 걷기/달리기 동작 (Run, Walk 등)
+                const walkClip = findAnimation(animations, 'Run', 'Walk', 'Move');
+                if (walkClip) actions['Walking'] = mixer.clipAction(walkClip);
+
+                // 3. 점프 동작
+                const jumpClip = findAnimation(animations, 'Jump', 'Hop');
+                if (jumpClip) {
+                    actions['Jump'] = mixer.clipAction(jumpClip);
                     actions['Jump'].setLoop(THREE.LoopOnce);
                     actions['Jump'].clampWhenFinished = true;
                 }
-                
-                // Death 모션은 반복 금지
-                if(actions['Death']) {
-                    actions['Death'].setLoop(THREE.LoopOnce);
-                    actions['Death'].clampWhenFinished = true;
+
+                // 4. 수영 동작 (Swim이 있으면 연결, 없으면 점프나 걷기 등 대체)
+                const swimClip = findAnimation(animations, 'Swim', 'Dive');
+                if (swimClip) {
+                     actions['Swim'] = mixer.clipAction(swimClip);
                 }
 
+                // 초기 실행
                 activeAction = actions['Idle'];
                 activeAction.play();
+            } else {
+                console.warn("이 마리오 파일에는 애니메이션이 없습니다! 뻣뻣하게 움직입니다.");
             }
+
+        }, undefined, function(error) {
+            console.error("마리오를 불러오는데 실패했습니다:", error);
+            document.getElementById('loading').innerText = "마리오 로딩 실패! (콘솔 확인)";
         });
 
-        // --- 5. 물리 & 컨트롤 변수 ---
+        // --- 5. 컨트롤 (한글 키보드 지원) & 물리 ---
         const keys = { w: false, a: false, s: false, d: false, space: false };
         const playerSpeed = 0.15;
         
         let verticalVelocity = 0;
         const gravity = -0.015;
         const jumpStrength = 0.4;
-        const groundLevel = 0.0; // 섬 표면 높이
+        const groundLevel = 0.0;
         let isGrounded = false;
-        let isDead = false; // 물에 빠졌는지 체크
+        let isDead = false;
 
+        // ★ 핵심: event.key 대신 event.code 사용 (언어 상관없이 물리적 키 위치 인식) ★
         window.addEventListener('keydown', (e) => {
-            if(isDead) return; // 죽었으면 키 입력 무시
-            const key = e.key.toLowerCase();
-            if (keys.hasOwnProperty(key)) keys[key] = true;
+            if(isDead) return;
+            // KeyW, KeyA ... 는 키보드 언어 설정과 상관없이 항상 고정됨
+            if (e.code === 'KeyW') keys.w = true;
+            if (e.code === 'KeyS') keys.s = true;
+            if (e.code === 'KeyA') keys.a = true;
+            if (e.code === 'KeyD') keys.d = true;
             if (e.code === 'Space') keys.space = true;
         });
+
         window.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            if (keys.hasOwnProperty(key)) keys[key] = false;
+            if (e.code === 'KeyW') keys.w = false;
+            if (e.code === 'KeyS') keys.s = false;
+            if (e.code === 'KeyA') keys.a = false;
+            if (e.code === 'KeyD') keys.d = false;
             if (e.code === 'Space') keys.space = false;
         });
 
@@ -201,18 +234,12 @@
             activeAction.reset().fadeIn(duration).play();
         }
 
-        // ★ 리스폰(부활) 함수 ★
         function respawn() {
-            // 위치 초기화
-            playerModel.position.set(0, 10, 0); // 하늘 위로 이동
+            playerModel.position.set(0, 10, 0);
             verticalVelocity = 0;
             isDead = false;
             isGrounded = false;
-            
-            // 화면 효과 끄기
             document.getElementById('splash-screen').style.opacity = 0;
-            
-            // 애니메이션 초기화
             fadeToAction('Idle', 0.5);
         }
 
@@ -227,12 +254,10 @@
             if (mixer) mixer.update(delta);
 
             if (playerModel) {
-                // --- 이동 로직 ---
                 let moveX = 0;
                 let moveZ = 0;
                 let isMoving = false;
 
-                // 죽지 않았을 때만 움직임 가능
                 if (!isDead) {
                     if (keys.w) { moveZ -= playerSpeed; isMoving = true; }
                     if (keys.s) { moveZ += playerSpeed; isMoving = true; }
@@ -243,15 +268,11 @@
                 playerModel.position.x += moveX;
                 playerModel.position.z += moveZ;
 
-                // --- ★ 낙사 판정 로직 (핵심) ★ ---
-                
-                // 1. 현재 중심으로부터의 거리 계산 (피타고라스 정리)
+                // 낙사 판정
                 const dist = Math.sqrt(playerModel.position.x**2 + playerModel.position.z**2);
-                
-                // 2. 섬 반지름(약 23)보다 멀리 갔는가?
                 const isOnIsland = dist < (islandRadius - 1); 
 
-                // 3. 점프 및 중력
+                // 점프
                 if (keys.space && isGrounded && !isDead) {
                     verticalVelocity = jumpStrength;
                     isGrounded = false;
@@ -261,33 +282,32 @@
                 verticalVelocity += gravity;
                 playerModel.position.y += verticalVelocity;
 
-                // 4. 바닥 충돌 처리
                 if (isOnIsland) {
-                    // 섬 위에 있을 때: 땅바닥(0.0)에서 멈춤
                     if (playerModel.position.y <= groundLevel) {
                         playerModel.position.y = groundLevel;
                         verticalVelocity = 0;
                         isGrounded = true;
                     }
                 } else {
-                    // 섬 밖일 때: 바닥이 없으므로 계속 떨어짐 (isGrounded = false)
                     isGrounded = false;
                 }
 
-                // 5. 물에 빠짐 체크 (높이가 -2 이하로 떨어지면)
+                // 물에 빠짐 체크
                 if (playerModel.position.y < -2 && !isDead) {
-                    isDead = true; // 사망 처리
-                    fadeToAction('Death', 0.2); // 죽는 모션 (또는 허우적대는 모션)
+                    isDead = true;
                     
-                    // 화면 파랗게 질림 효과
+                    // 수영 모션이 있으면 수영하고, 없으면 점프나 걷기 모션이라도 재생
+                    if (actions['Swim']) {
+                        fadeToAction('Swim', 0.2);
+                    } else if (actions['Jump']) {
+                        fadeToAction('Jump', 0.2); // 허우적대는 느낌
+                    }
+                    
                     document.getElementById('splash-screen').style.opacity = 0.8;
-
-                    // 2초 뒤에 부활시키기
                     setTimeout(respawn, 2000);
                 }
 
-
-                // --- 회전 및 애니메이션 ---
+                // 회전 및 애니메이션
                 if (isMoving && !isDead) {
                     const angle = Math.atan2(moveX, moveZ);
                     playerModel.rotation.y = angle;
@@ -298,13 +318,12 @@
                     }
                 }
 
-                // --- 카메라 추적 ---
+                // 카메라
                 const targetCameraPos = playerModel.position.clone().add(cameraOffset);
                 camera.position.lerp(targetCameraPos, 0.1);
                 camera.lookAt(playerModel.position);
             }
 
-            // 환경 효과
             const time = Date.now() * 0.001;
             sea.position.y = -1.5 + Math.sin(time * 0.5) * 0.1;
             trees.forEach(tree => {
