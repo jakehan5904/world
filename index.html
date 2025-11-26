@@ -2,9 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>HiNOMAD WORLD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> <title>HiNOMAD WORLD</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; touch-action: none; /* 모바일 스크롤 방지 */ }
         
         /* UI: 조작 설명 */
         #instructions {
@@ -13,69 +13,68 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5); pointer-events: none; z-index: 10;
         }
         
-        /* UI: 로딩 화면 */
         #loading {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             color: white; font-weight: bold; font-size: 20px; text-shadow: 1px 1px 2px black;
             transition: opacity 0.5s; pointer-events: none;
         }
         
-        /* UI: 물에 빠짐 효과 */
         #splash-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 100, 255, 0.5); opacity: 0;
             pointer-events: none; transition: opacity 0.2s; z-index: 5;
         }
 
-        /* ★ UI: NPC 말풍선 버튼 (평소엔 숨김) ★ */
+        /* NPC 말풍선 */
         #npc-label {
             position: absolute;
-            background: white;
-            color: #333;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-family: sans-serif;
-            cursor: pointer;
+            background: white; color: #333; padding: 8px 16px; border-radius: 20px;
+            font-weight: bold; font-family: sans-serif; cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transform: translate(-50%, -100%); /* 중앙 정렬 */
-            display: none; /* 안 보임 */
-            z-index: 20;
-            border: 2px solid #00ffff;
-        }
-        #npc-label:hover {
-            background: #00ffff;
-            color: black;
+            transform: translate(-50%, -100%); display: none; z-index: 20; border: 2px solid #00ffff;
         }
 
-        /* ★ UI: 설명 모달창 (팝업) ★ */
+        /* 정보 팝업창 */
         #info-modal {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 40px;
-            border-radius: 15px;
-            text-align: center;
-            display: none; /* 안 보임 */
-            z-index: 30;
-            backdrop-filter: blur(5px);
-            border: 1px solid #555;
-            min-width: 300px;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85); color: white; padding: 30px; border-radius: 15px;
+            text-align: center; display: none; z-index: 30; border: 1px solid #00ffff;
+            width: 80%; max-width: 400px;
         }
         #info-modal h2 { margin-top: 0; color: #00ffff; }
-        #info-modal p { font-size: 1.2rem; line-height: 1.6; }
         #close-btn {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background: #00ffff;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
+            margin-top: 20px; padding: 10px 20px; background: #00ffff; border: none;
+            border-radius: 5px; font-weight: bold; cursor: pointer;
+        }
+
+        /* ★ 모바일 컨트롤 UI ★ */
+        #joystick-zone {
+            position: absolute; bottom: 30px; left: 30px;
+            width: 120px; height: 120px; z-index: 15;
+            /* 반투명한 원으로 영역 표시 (선택사항) */
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #jump-btn {
+            position: absolute; bottom: 40px; right: 30px;
+            width: 80px; height: 80px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            border-radius: 50%;
+            color: white; font-weight: bold; font-size: 14px;
+            z-index: 15; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            user-select: none;
+        }
+        #jump-btn:active {
+            background: rgba(0, 255, 255, 0.5); /* 터치 시 색 변화 */
         }
     </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
+
     <script type="importmap">
         {
             "imports": {
@@ -86,17 +85,20 @@
     </script>
 </head>
 <body>
-    <div id="instructions">WASD: 이동 | SPACE: 점프 | NPC를 찾아보세요!</div>
-    <div id="loading">HiNOMAD WORLD 생성 중...</div>
+    <div id="instructions">PC: WASD 이동 | Mobile: 터치 조이스틱</div>
+    <div id="loading">HiNOMAD WORLD (Mobile Ready)...</div>
     <div id="splash-screen"></div>
 
     <div id="npc-label">About HiNOMAD 💬</div>
 
     <div id="info-modal">
         <h2>HiNOMAD</h2>
-        <p>We create the future.</p>
+        <p>IT 브랜딩 컴퍼니<br>We create the future.</p>
         <button id="close-btn">닫기</button>
     </div>
+
+    <div id="joystick-zone"></div>
+    <div id="jump-btn">JUMP</div>
     
     <script type="module">
         import * as THREE from 'three';
@@ -122,7 +124,7 @@
         sunLight.castShadow = true;
         scene.add(sunLight);
 
-        // 3. 맵 (바다 & 섬)
+        // 3. 맵
         const sea = new THREE.Mesh(
             new THREE.PlaneGeometry(1000, 1000),
             new THREE.MeshStandardMaterial({ color: 0x1E90FF, roughness: 0.2 })
@@ -131,7 +133,7 @@
         sea.position.y = -1.5;
         scene.add(sea);
 
-        const islandRadius = 30; // 섬을 좀 더 키웠습니다
+        const islandRadius = 30;
         const island = new THREE.Mesh(
             new THREE.CylinderGeometry(islandRadius, islandRadius, 3, 64),
             new THREE.MeshStandardMaterial({ color: 0x90EE90 })
@@ -140,7 +142,6 @@
         island.receiveShadow = true;
         scene.add(island);
 
-        // 나무 심기
         function createTree(x, z) {
             const group = new THREE.Group();
             const trunk = new THREE.Mesh(
@@ -167,21 +168,19 @@
             trees.push(createTree(Math.cos(angle) * r, Math.sin(angle) * r));
         }
 
-        // --- 4. 캐릭터 로드 (플레이어 & NPC) ---
+        // 4. 캐릭터 로드
         let playerModel = null, npcModel = null;
         let playerMixer = null, npcMixer = null;
         let playerActions = {}, npcActions = {};
         let activeAction = null;
-        
         const loader = new GLTFLoader();
         const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
-        // 4-1. 플레이어 로드
         loader.load(modelUrl, function (gltf) {
             playerModel = gltf.scene;
             playerModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
             playerModel.scale.set(0.5, 0.5, 0.5);
-            playerModel.position.set(0, 10, 0); // 하늘 등장
+            playerModel.position.set(0, 10, 0);
             scene.add(playerModel);
             
             document.getElementById('loading').style.opacity = 0;
@@ -208,35 +207,27 @@
             }
         });
 
-        // 4-2. NPC 로드 (똑같은 로봇을 하나 더 로드)
         loader.load(modelUrl, function (gltf) {
             npcModel = gltf.scene;
             npcModel.traverse(o => { if(o.isMesh) o.castShadow = true; });
             npcModel.scale.set(0.5, 0.5, 0.5);
-            
-            // ★ NPC 위치 설정 (섬 한쪽에 배치) ★
             npcModel.position.set(10, 0, -5); 
-            npcModel.rotation.y = -Math.PI / 2; // 플레이어 쪽 바라보게
-
+            npcModel.rotation.y = -Math.PI / 2;
             scene.add(npcModel);
 
             const animations = gltf.animations;
             if (animations && animations.length > 0) {
                 npcMixer = new THREE.AnimationMixer(npcModel);
-                // NPC는 계속 손을 흔들게 설정 (Wave 동작이 없으면 Dance나 Jump 등 활용)
-                // RobotExpressive에는 'Wave'가 없어서 'Dance'나 'Jump'를 루프로 돌림
-                // 여기서는 'Jump'를 반복시켜서 신나보이게 함
-                const npcAction = npcMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Dance'));
-                if(npcAction) npcAction.play();
+                const dance = npcMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Dance'));
+                if(dance) dance.play();
                 else {
-                     // 댄스가 없으면 Idle
                      const idle = npcMixer.clipAction(THREE.AnimationClip.findByName(animations, 'Idle'));
                      if(idle) idle.play();
                 }
             }
         });
 
-        // --- 5. 컨트롤 & 물리 ---
+        // --- 5. 컨트롤 (키보드 + 모바일 조이스틱) ---
         const keys = { w: false, a: false, s: false, d: false, space: false };
         const playerSpeed = 0.15;
         let verticalVelocity = 0;
@@ -245,6 +236,7 @@
         let isGrounded = false;
         let isDead = false;
 
+        // 5-1. 키보드 이벤트
         window.addEventListener('keydown', (e) => {
             if(isDead) return;
             if (e.code === 'KeyW') keys.w = true;
@@ -260,6 +252,49 @@
             if (e.code === 'KeyD') keys.d = false;
             if (e.code === 'Space') keys.space = false;
         });
+
+        // 5-2. ★ 모바일 조이스틱 설정 (Nipple.js) ★
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickManager = nipplejs.create({
+            zone: joystickZone,
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'white',
+            size: 100
+        });
+
+        // 조이스틱 데이터 저장 변수
+        let joystickData = { x: 0, y: 0, active: false };
+
+        joystickManager.on('move', (evt, data) => {
+            if(data && data.vector) {
+                joystickData.active = true;
+                joystickData.x = data.vector.x;
+                joystickData.y = data.vector.y;
+            }
+        });
+
+        joystickManager.on('end', () => {
+            joystickData.active = false;
+            joystickData.x = 0;
+            joystickData.y = 0;
+        });
+
+        // 5-3. ★ 모바일 점프 버튼 ★
+        const jumpBtn = document.getElementById('jump-btn');
+        // 터치 시작 시 점프 키 누른 것으로 처리
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // 스크롤 방지
+            keys.space = true;
+        });
+        jumpBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            keys.space = false;
+        });
+        // 마우스 클릭도 지원 (PC 테스트용)
+        jumpBtn.addEventListener('mousedown', () => keys.space = true);
+        jumpBtn.addEventListener('mouseup', () => keys.space = false);
+
 
         function fadeToAction(name, duration) {
             if (!playerActions[name] || activeAction === playerActions[name]) return;
@@ -283,16 +318,18 @@
         const infoModal = document.getElementById('info-modal');
         const closeBtn = document.getElementById('close-btn');
 
-        // 말풍선 클릭 시 모달 열기
-        npcLabel.addEventListener('click', () => {
-            infoModal.style.display = 'block';
+        // 터치 및 클릭 모두 지원
+        npcLabel.addEventListener('click', () => infoModal.style.display = 'block');
+        npcLabel.addEventListener('touchstart', (e) => { 
+            e.preventDefault(); // 더블탭 줌 방지
+            infoModal.style.display = 'block'; 
         });
 
-        // 닫기 버튼 클릭 시 모달 닫기
-        closeBtn.addEventListener('click', () => {
+        closeBtn.addEventListener('click', () => infoModal.style.display = 'none');
+        closeBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
             infoModal.style.display = 'none';
         });
-
 
         // --- 7. 게임 루프 ---
         const clock = new THREE.Clock();
@@ -305,41 +342,39 @@
             if (playerMixer) playerMixer.update(delta);
             if (npcMixer) npcMixer.update(delta);
 
-            // ★ NPC 상호작용 로직 (거리 계산) ★
             if (playerModel && npcModel) {
                 const dist = playerModel.position.distanceTo(npcModel.position);
-                
-                // 거리 5m 이내면 말풍선 표시
                 if (dist < 5) {
                     npcLabel.style.display = 'block';
-                    
-                    // 3D 좌표 -> 2D 화면 좌표 변환 (머리 위에 띄우기)
-                    // NPC 머리 위치 (키가 대략 2m라고 가정하고 y+2)
                     const npcHeadPos = npcModel.position.clone().add(new THREE.Vector3(0, 2.5, 0));
-                    npcHeadPos.project(camera); // 화면 좌표(-1 ~ 1)로 변환
-
+                    npcHeadPos.project(camera);
                     const x = (npcHeadPos.x * .5 + .5) * window.innerWidth;
                     const y = (-(npcHeadPos.y * .5) + .5) * window.innerHeight;
-
                     npcLabel.style.left = `${x}px`;
                     npcLabel.style.top = `${y}px`;
-
                 } else {
                     npcLabel.style.display = 'none';
-                    infoModal.style.display = 'none'; // 멀어지면 창도 닫기 (선택사항)
+                    infoModal.style.display = 'none';
                 }
             }
 
-
             if (playerModel) {
-                // 이동 및 물리 (기존과 동일)
                 let moveX = 0, moveZ = 0, isMoving = false;
 
                 if (!isDead) {
+                    // 1. 키보드 입력 처리
                     if (keys.w) { moveZ -= playerSpeed; isMoving = true; }
                     if (keys.s) { moveZ += playerSpeed; isMoving = true; }
                     if (keys.a) { moveX -= playerSpeed; isMoving = true; }
                     if (keys.d) { moveX += playerSpeed; isMoving = true; }
+
+                    // 2. ★ 조이스틱 입력 합치기 (중요) ★
+                    if (joystickData.active) {
+                        // 조이스틱 Y값이 위로 갈수록 양수이므로, 3D 좌표계(-Z가 앞)에 맞게 반전
+                        moveZ -= joystickData.y * playerSpeed;
+                        moveX += joystickData.x * playerSpeed;
+                        isMoving = true;
+                    }
                 }
 
                 playerModel.position.x += moveX;
@@ -375,6 +410,7 @@
                 }
 
                 if (isMoving && !isDead) {
+                    // 이동 각도 계산 (키보드 + 조이스틱 모두 반영)
                     const angle = Math.atan2(moveX, moveZ);
                     playerModel.rotation.y = angle;
                     if (isGrounded) fadeToAction('Walking', 0.2);
